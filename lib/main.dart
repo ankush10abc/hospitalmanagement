@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'features/admin_auth/data/firebase_admin_auth_service.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(
     HospitalAdminApp(
       authService: FirebaseAdminAuthService(FirebaseAuth.instance),

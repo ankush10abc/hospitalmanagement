@@ -20,9 +20,9 @@ class UsersPage extends ConsumerWidget {
       subtitle: 'Manage administrator and consultant accounts',
       actions: [
         FilledButton.icon(
-          onPressed: () {}, // TODO: invite user dialog
+          onPressed: () => context.go('/users/create'),
           icon: const Icon(Icons.person_add_rounded, size: 18),
-          label: const Text('Invite User'),
+          label: const Text('Create User'),
         ),
       ],
       filters: SearchFilterBar(

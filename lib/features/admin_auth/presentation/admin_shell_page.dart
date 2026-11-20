@@ -34,6 +34,7 @@ const _navGroups = [
   ]),
   _NavGroup(label: 'ADMINISTRATION', items: [
     _NavItem(label: 'Users', icon: Icons.people_rounded, route: '/users'),
+    _NavItem(label: 'Create User', icon: Icons.person_add_rounded, route: '/users/create'),
     _NavItem(label: 'Organizations', icon: Icons.business_center_rounded, route: '/organizations'),
     _NavItem(label: 'Hospital Projects', icon: Icons.business_rounded, route: '/projects'),
   ]),

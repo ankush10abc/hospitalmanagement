@@ -10,6 +10,7 @@ import '../../features/users/presentation/users_page.dart';
 import '../../features/users/presentation/user_detail_page.dart';
 import '../../features/users/presentation/organizations_page.dart';
 import '../../features/users/presentation/organization_detail_page.dart';
+import '../../features/admin_auth/presentation/create_user_page.dart';
 
 class _PlaceholderPage extends StatelessWidget {
   const _PlaceholderPage({required this.title});
@@ -63,6 +64,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     UserDetailPage(userId: state.pathParameters['id']!),
               ),
             ],
+          ),
+          GoRoute(
+            path: '/users/create',
+            builder: (context, state) => const CreateUserPage(),
           ),
           GoRoute(
             path: '/organizations',

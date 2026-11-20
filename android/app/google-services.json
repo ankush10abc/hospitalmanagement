@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "970966249206",
+    "firebase_url": "https://my-testankush.firebaseio.com",
+    "project_id": "my-testankush",
+    "storage_bucket": "my-testankush.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:970966249206:android:3ee791d8a7e071db55c6d7",
+        "android_client_info": {
+          "package_name": "com.ankush.uipractice"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFN-AVBylQTGSSM5Cx_iS-jLc7BC3AEPw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

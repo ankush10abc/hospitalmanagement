@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../domain/admin_auth_service.dart';
-import 'admin_login_page.dart';
 
+/// Legacy home page — kept to satisfy the import in admin_login_page.dart.
+///
+/// When the app uses GoRouter (MaterialApp.router), Navigator.pushReplacement
+/// to this page still works because go_router builds on top of Navigator.
+/// This widget immediately redirects to /dashboard using go_router so the
+/// user lands in the proper shell experience.
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({
     required this.account,
@@ -18,83 +24,20 @@ class AdminHomePage extends StatefulWidget {
 }
 
 class _AdminHomePageState extends State<AdminHomePage> {
-  bool _isSigningOut = false;
-
-  Future<void> _signOut() async {
-    setState(() {
-      _isSigningOut = true;
+  @override
+  void initState() {
+    super.initState();
+    // Redirect to the shell dashboard on first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.go('/dashboard');
     });
-
-    try {
-      await widget.authService.signOut();
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(
-          builder: (_) => AdminLoginPage(authService: widget.authService),
-        ),
-        (_) => false,
-      );
-    } on AdminAuthException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSigningOut = false;
-        });
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hospital Admin Portal'),
-        actions: [
-          TextButton.icon(
-            onPressed: _isSigningOut ? null : _signOut,
-            icon: _isSigningOut
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.logout_rounded),
-            label: const Text('Sign out'),
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
-      body: Center(
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.verified_user_outlined,
-                  size: 34,
-                  color: Color(0xFF167D8D),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Signed in to the admin portal',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 10),
-                Text(widget.account.email),
-                const SizedBox(height: 4),
-                Text('Role: ${widget.account.role}'),
-              ],
-            ),
-          ),
-        ),
-      ),
+    // Show a brief loading screen while the redirect fires.
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

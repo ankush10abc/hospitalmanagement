@@ -3,14 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/auth_provider.dart';
-import '../../features/admin_auth/domain/admin_auth_service.dart';
 import '../../features/admin_auth/presentation/admin_login_page.dart';
 import '../../features/admin_auth/presentation/admin_shell_page.dart';
-import '../../features/dashboard/presentation/dashboard_placeholder.dart';
-
-// ---------------------------------------------------------------------------
-// Placeholder pages for unimplemented routes
-// ---------------------------------------------------------------------------
+import '../../features/dashboard/presentation/dashboard_page.dart';
+import '../../features/users/presentation/users_page.dart';
+import '../../features/users/presentation/user_detail_page.dart';
+import '../../features/users/presentation/organizations_page.dart';
+import '../../features/users/presentation/organization_detail_page.dart';
 
 class _PlaceholderPage extends StatelessWidget {
   const _PlaceholderPage({required this.title});
@@ -28,54 +27,56 @@ class _PlaceholderPage extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Router provider
-// ---------------------------------------------------------------------------
-
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authService = ref.watch(adminAuthServiceProvider);
-  final authNotifier = ref.read(authNotifierProvider.notifier);
+  final authService = ref.read(adminAuthServiceProvider);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/dashboard',
     debugLogDiagnostics: false,
     redirect: (context, state) {
-      // Sync auth notifier with actual service state on every navigation.
-      authNotifier.refresh();
-
       final isLoggedIn = authService.currentAdmin != null;
       final isGoingToLogin = state.matchedLocation == '/login';
-
       if (!isLoggedIn && !isGoingToLogin) return '/login';
       if (isLoggedIn && isGoingToLogin) return '/dashboard';
       return null;
     },
     routes: [
-      // ---- Unauthenticated ----
       GoRoute(
         path: '/login',
-        builder: (context, state) =>
-            AdminLoginPage(authService: authService),
+        builder: (context, state) => AdminLoginPage(authService: authService),
       ),
-
-      // ---- Authenticated shell ----
       ShellRoute(
-        builder: (context, state, child) =>
-            AdminShellPage(child: child),
+        builder: (context, state, child) => AdminShellPage(child: child),
         routes: [
           GoRoute(
-            path: '/',
-            redirect: (_, __) => '/dashboard',
-          ),
-          GoRoute(
             path: '/dashboard',
-            builder: (context, state) => const DashboardPlaceholder(),
+            builder: (context, state) => const DashboardPage(),
           ),
+          // Module 3 — Users & Organizations
           GoRoute(
             path: '/users',
-            builder: (context, state) =>
-                const _PlaceholderPage(title: 'Users & Organisations'),
+            builder: (context, state) => const UsersPage(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) =>
+                    UserDetailPage(userId: state.pathParameters['id']!),
+              ),
+            ],
           ),
+          GoRoute(
+            path: '/organizations',
+            builder: (context, state) => const OrganizationsPage(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => OrganizationDetailPage(
+                  orgId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
+          ),
+          // Placeholders for future modules
           GoRoute(
             path: '/projects',
             builder: (context, state) =>
@@ -87,9 +88,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 const _PlaceholderPage(title: 'Master Data'),
           ),
           GoRoute(
+            path: '/catalogs',
+            builder: (context, state) =>
+                const _PlaceholderPage(title: 'Estimation Catalogs'),
+          ),
+          GoRoute(
+            path: '/assumption-templates',
+            builder: (context, state) =>
+                const _PlaceholderPage(title: 'Assumption Templates'),
+          ),
+          GoRoute(
+            path: '/calculation-rules',
+            builder: (context, state) =>
+                const _PlaceholderPage(title: 'Calculation Rules'),
+          ),
+          GoRoute(
+            path: '/financial-models',
+            builder: (context, state) =>
+                const _PlaceholderPage(title: 'Financial Models'),
+          ),
+          GoRoute(
+            path: '/workbook-import',
+            builder: (context, state) =>
+                const _PlaceholderPage(title: 'Workbook Import & Reconciliation'),
+          ),
+          GoRoute(
+            path: '/validation',
+            builder: (context, state) =>
+                const _PlaceholderPage(title: 'Validation Centre'),
+          ),
+          GoRoute(
+            path: '/reports',
+            builder: (context, state) =>
+                const _PlaceholderPage(title: 'Reports & Templates'),
+          ),
+          GoRoute(
+            path: '/audit-logs',
+            builder: (context, state) =>
+                const _PlaceholderPage(title: 'Audit Logs'),
+          ),
+          GoRoute(
             path: '/settings',
             builder: (context, state) =>
-                const _PlaceholderPage(title: 'Settings'),
+                const _PlaceholderPage(title: 'System Settings'),
           ),
         ],
       ),

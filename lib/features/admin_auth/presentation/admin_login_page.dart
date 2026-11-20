@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/providers/auth_provider.dart';
 import '../domain/admin_auth_service.dart';
-import 'admin_home_page.dart';
 
-class AdminLoginPage extends StatefulWidget {
+class AdminLoginPage extends ConsumerStatefulWidget {
   const AdminLoginPage({required this.authService, super.key});
 
   final AdminAuthService authService;
 
   @override
-  State<AdminLoginPage> createState() => _AdminLoginPageState();
+  ConsumerState<AdminLoginPage> createState() => _AdminLoginPageState();
 }
 
 enum _AuthView { signIn, passwordRecovery }
 
-class _AdminLoginPageState extends State<AdminLoginPage> {
+class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -46,19 +48,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
           'If an account exists for this email, a reset link will be sent.',
         );
       } else {
-        final account = await widget.authService.signIn(
+        await ref.read(authNotifierProvider.notifier).signIn(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => AdminHomePage(
-              account: account,
-              authService: widget.authService,
-            ),
-          ),
-        );
+        context.go('/dashboard');
       }
     } on AdminAuthException catch (error) {
       if (mounted) _showMessage(error.message);

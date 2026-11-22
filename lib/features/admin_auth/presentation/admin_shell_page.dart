@@ -29,32 +29,107 @@ class _NavGroup {
 }
 
 const _navGroups = [
-  _NavGroup(label: '', items: [
-    _NavItem(label: 'Overview', icon: Icons.dashboard_rounded, route: '/dashboard'),
-  ]),
-  _NavGroup(label: 'ADMINISTRATION', items: [
-    _NavItem(label: 'Users', icon: Icons.people_rounded, route: '/users'),
-    _NavItem(label: 'Create User', icon: Icons.person_add_rounded, route: '/users/create'),
-    _NavItem(label: 'Organizations', icon: Icons.business_center_rounded, route: '/organizations'),
-    _NavItem(label: 'Hospital Projects', icon: Icons.business_rounded, route: '/projects'),
-    _NavItem(label: 'Create Hospital Plan', icon: Icons.add_chart_rounded, route: '/hospital-plan/create'),
-  ]),
-  _NavGroup(label: 'CONFIGURATION', items: [
-    _NavItem(label: 'Master Data', icon: Icons.storage_rounded, route: '/master-data'),
-    _NavItem(label: 'Catalogs', icon: Icons.inventory_2_rounded, route: '/catalogs'),
-    _NavItem(label: 'Assumption Templates', icon: Icons.tune_rounded, route: '/assumption-templates'),
-    _NavItem(label: 'Calculation Rules', icon: Icons.calculate_rounded, route: '/calculation-rules'),
-    _NavItem(label: 'Financial Models', icon: Icons.account_balance_rounded, route: '/financial-models'),
-  ]),
-  _NavGroup(label: 'TOOLS', items: [
-    _NavItem(label: 'Workbook Import', icon: Icons.upload_file_rounded, route: '/workbook-import'),
-    _NavItem(label: 'Validation Centre', icon: Icons.fact_check_rounded, route: '/validation'),
-    _NavItem(label: 'Reports', icon: Icons.description_rounded, route: '/reports'),
-    _NavItem(label: 'Audit Logs', icon: Icons.history_rounded, route: '/audit-logs'),
-  ]),
-  _NavGroup(label: 'SYSTEM', items: [
-    _NavItem(label: 'Settings', icon: Icons.settings_rounded, route: '/settings'),
-  ]),
+  _NavGroup(
+    label: '',
+    items: [
+      _NavItem(
+        label: 'Overview',
+        icon: Icons.dashboard_rounded,
+        route: '/dashboard',
+      ),
+    ],
+  ),
+  _NavGroup(
+    label: 'ADMINISTRATION',
+    items: [
+      _NavItem(label: 'Users', icon: Icons.people_rounded, route: '/users'),
+      _NavItem(
+        label: 'Create User',
+        icon: Icons.person_add_rounded,
+        route: '/users/create',
+      ),
+      _NavItem(
+        label: 'Organizations',
+        icon: Icons.business_center_rounded,
+        route: '/organizations',
+      ),
+      _NavItem(
+        label: 'Hospital Projects',
+        icon: Icons.business_rounded,
+        route: '/projects',
+      ),
+      _NavItem(
+        label: 'Create Hospital Plan',
+        icon: Icons.add_chart_rounded,
+        route: '/hospital-plan',
+      ),
+    ],
+  ),
+  _NavGroup(
+    label: 'CONFIGURATION',
+    items: [
+      _NavItem(
+        label: 'Master Data',
+        icon: Icons.storage_rounded,
+        route: '/master-data',
+      ),
+      _NavItem(
+        label: 'Catalogs',
+        icon: Icons.inventory_2_rounded,
+        route: '/catalogs',
+      ),
+      _NavItem(
+        label: 'Assumption Templates',
+        icon: Icons.tune_rounded,
+        route: '/assumption-templates',
+      ),
+      _NavItem(
+        label: 'Calculation Rules',
+        icon: Icons.calculate_rounded,
+        route: '/calculation-rules',
+      ),
+      _NavItem(
+        label: 'Financial Models',
+        icon: Icons.account_balance_rounded,
+        route: '/financial-models',
+      ),
+    ],
+  ),
+  _NavGroup(
+    label: 'TOOLS',
+    items: [
+      _NavItem(
+        label: 'Workbook Import',
+        icon: Icons.upload_file_rounded,
+        route: '/workbook-import',
+      ),
+      _NavItem(
+        label: 'Validation Centre',
+        icon: Icons.fact_check_rounded,
+        route: '/validation',
+      ),
+      _NavItem(
+        label: 'Reports',
+        icon: Icons.description_rounded,
+        route: '/reports',
+      ),
+      _NavItem(
+        label: 'Audit Logs',
+        icon: Icons.history_rounded,
+        route: '/audit-logs',
+      ),
+    ],
+  ),
+  _NavGroup(
+    label: 'SYSTEM',
+    items: [
+      _NavItem(
+        label: 'Settings',
+        icon: Icons.settings_rounded,
+        route: '/settings',
+      ),
+    ],
+  ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -178,8 +253,9 @@ class _AdminShellPageState extends ConsumerState<AdminShellPage> {
                         item: item,
                         selected: _isSelected(item.route, activeRoute),
                         onTap: () {
-                          if (Scaffold.of(context).isDrawerOpen) {
-                            Navigator.of(context).pop();
+                          final scaffold = _scaffoldKey.currentState;
+                          if (scaffold?.isDrawerOpen ?? false) {
+                            scaffold?.closeDrawer();
                           }
                           context.go(item.route);
                         },
@@ -288,9 +364,7 @@ class _AdminShellPageState extends ConsumerState<AdminShellPage> {
               child: _buildSidebarContent(context, activeRoute),
             ),
             const VerticalDivider(width: 1, thickness: 1),
-            Expanded(
-              child: widget.child,
-            ),
+            Expanded(child: widget.child),
           ],
         ),
       );
@@ -345,9 +419,7 @@ class _SidebarItem extends StatelessWidget {
             decoration: selected
                 ? BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    border: Border(
-                      left: BorderSide(color: teal, width: 3),
-                    ),
+                    border: Border(left: BorderSide(color: teal, width: 3)),
                   )
                 : null,
             child: Row(
@@ -355,9 +427,7 @@ class _SidebarItem extends StatelessWidget {
                 Icon(
                   item.icon,
                   size: 20,
-                  color: selected
-                      ? teal
-                      : Colors.white.withValues(alpha: 0.7),
+                  color: selected ? teal : Colors.white.withValues(alpha: 0.7),
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -367,8 +437,7 @@ class _SidebarItem extends StatelessWidget {
                         ? Colors.white
                         : Colors.white.withValues(alpha: 0.7),
                     fontSize: 14,
-                    fontWeight:
-                        selected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
               ],
@@ -385,10 +454,7 @@ class _SidebarItem extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ProfileMenu extends StatelessWidget {
-  const _ProfileMenu({
-    required this.account,
-    required this.onSignOut,
-  });
+  const _ProfileMenu({required this.account, required this.onSignOut});
 
   final AdminAccount account;
   final VoidCallback onSignOut;
@@ -418,10 +484,7 @@ class _ProfileMenu extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 account.role,
-                style: const TextStyle(
-                  color: Color(0xFF667786),
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Color(0xFF667786), fontSize: 12),
               ),
             ],
           ),
@@ -447,9 +510,7 @@ class _ProfileMenu extends StatelessWidget {
             radius: 16,
             backgroundColor: const Color(0xFF167D8D).withValues(alpha: 0.12),
             child: Text(
-              account.email.isNotEmpty
-                  ? account.email[0].toUpperCase()
-                  : 'A',
+              account.email.isNotEmpty ? account.email[0].toUpperCase() : 'A',
               style: const TextStyle(
                 color: Color(0xFF167D8D),
                 fontWeight: FontWeight.w700,

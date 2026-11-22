@@ -8,6 +8,32 @@ class FirestoreUserRepository implements UserRepository {
 
   final FirebaseFirestore _db;
 
+  // ── Safe get: tries server first, falls back to cache, returns [] on error ─
+
+  Future<QuerySnapshot<Map<String, dynamic>>> _safeGet(
+    Query<Map<String, dynamic>> q,
+  ) async {
+    try {
+      return await q.get(const GetOptions(source: Source.serverAndCache));
+    } on FirebaseException {
+      try {
+        return await q.get(const GetOptions(source: Source.cache));
+      } catch (_) {
+        rethrow;
+      }
+    }
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _safeDocGet(
+    DocumentReference<Map<String, dynamic>> ref,
+  ) async {
+    try {
+      return await ref.get(const GetOptions(source: Source.serverAndCache));
+    } on FirebaseException {
+      return await ref.get(const GetOptions(source: Source.cache));
+    }
+  }
+
   // ── Users ─────────────────────────────────────────────────────────────────
 
   @override
@@ -18,28 +44,33 @@ class FirestoreUserRepository implements UserRepository {
     int page = 1,
     int pageSize = 20,
   }) async {
-    Query<Map<String, dynamic>> q = _db.collection('users');
-    if (role != null) q = q.where('role', isEqualTo: role.name);
-    if (status != null) q = q.where('status', isEqualTo: status.name);
-    q = q.orderBy('createdAt', descending: true).limit(pageSize);
+    try {
+      Query<Map<String, dynamic>> q = _db.collection('users');
+      if (role != null) q = q.where('role', isEqualTo: role.name);
+      if (status != null) q = q.where('status', isEqualTo: status.name);
+      q = q.orderBy('createdAt', descending: true).limit(pageSize);
 
-    final snap = await q.get();
-    var users = snap.docs.map(_docToUser).toList();
+      final snap = await _safeGet(q);
+      var users = snap.docs.map(_docToUser).toList();
 
-    if (search != null && search.isNotEmpty) {
-      final q2 = search.toLowerCase();
-      users = users
-          .where((u) =>
-              u.name.toLowerCase().contains(q2) ||
-              u.email.toLowerCase().contains(q2))
-          .toList();
+      if (search != null && search.isNotEmpty) {
+        final q2 = search.toLowerCase();
+        users = users
+            .where((u) =>
+                u.name.toLowerCase().contains(q2) ||
+                u.email.toLowerCase().contains(q2))
+            .toList();
+      }
+      return users;
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable') return [];
+      rethrow;
     }
-    return users;
   }
 
   @override
   Future<AdminUser> getUserById(String id) async {
-    final doc = await _db.collection('users').doc(id).get();
+    final doc = await _safeDocGet(_db.collection('users').doc(id));
     if (!doc.exists) throw Exception('User not found');
     return _docToUser(doc);
   }
@@ -64,39 +95,49 @@ class FirestoreUserRepository implements UserRepository {
     int page = 1,
     int pageSize = 20,
   }) async {
-    Query<Map<String, dynamic>> q = _db.collection('organizations');
-    if (type != null) q = q.where('type', isEqualTo: type.name);
-    if (status != null) q = q.where('status', isEqualTo: status.name);
-    q = q.orderBy('createdAt', descending: true).limit(pageSize);
+    try {
+      Query<Map<String, dynamic>> q = _db.collection('organizations');
+      if (type != null) q = q.where('type', isEqualTo: type.name);
+      if (status != null) q = q.where('status', isEqualTo: status.name);
+      q = q.orderBy('createdAt', descending: true).limit(pageSize);
 
-    final snap = await q.get();
-    var orgs = snap.docs.map(_docToOrg).toList();
+      final snap = await _safeGet(q);
+      var orgs = snap.docs.map(_docToOrg).toList();
 
-    if (search != null && search.isNotEmpty) {
-      final q2 = search.toLowerCase();
-      orgs = orgs
-          .where((o) =>
-              o.name.toLowerCase().contains(q2) ||
-              (o.contactEmail?.toLowerCase().contains(q2) ?? false))
-          .toList();
+      if (search != null && search.isNotEmpty) {
+        final q2 = search.toLowerCase();
+        orgs = orgs
+            .where((o) =>
+                o.name.toLowerCase().contains(q2) ||
+                (o.contactEmail?.toLowerCase().contains(q2) ?? false))
+            .toList();
+      }
+      return orgs;
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable') return [];
+      rethrow;
     }
-    return orgs;
   }
 
   @override
   Future<Organization> getOrganizationById(String id) async {
-    final doc = await _db.collection('organizations').doc(id).get();
+    final doc =
+        await _safeDocGet(_db.collection('organizations').doc(id));
     if (!doc.exists) throw Exception('Organization not found');
     return _docToOrg(doc);
   }
 
   @override
   Future<List<AdminUser>> getOrganizationMembers(String orgId) async {
-    final snap = await _db
-        .collection('users')
-        .where('organizationId', isEqualTo: orgId)
-        .get();
-    return snap.docs.map(_docToUser).toList();
+    try {
+      final snap = await _safeGet(
+        _db.collection('users').where('organizationId', isEqualTo: orgId),
+      );
+      return snap.docs.map(_docToUser).toList();
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable') return [];
+      rethrow;
+    }
   }
 
   @override

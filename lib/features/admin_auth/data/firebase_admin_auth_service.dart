@@ -5,7 +5,7 @@ import '../domain/admin_auth_service.dart';
 
 class FirebaseAdminAuthService implements AdminAuthService {
   FirebaseAdminAuthService(this._auth, {FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
@@ -48,12 +48,21 @@ class FirebaseAdminAuthService implements AdminAuthService {
       }
 
       // 2. Fallback: read role from Firestore users collection
-      final doc = await _db.collection('users').doc(user.uid).get();
+      final doc = await _getUserProfile(user.uid);
       if (doc.exists) {
-        final firestoreRole = _normalise(doc.data()?['role'] as String? ?? '');
+        final rawRole = doc.data()?['role'];
+        final firestoreRole = _normalise(rawRole is String ? rawRole : '');
         if (_allowedRoles.contains(firestoreRole)) {
           return AdminAccount(email: user.email ?? '', role: firestoreRole);
         }
+      }
+
+      // Never apply the bootstrap admin fallback from an offline cache. A
+      // cached profile without a valid role cannot prove current access.
+      if (doc.metadata.isFromCache) {
+        throw const AdminAuthException(
+          'Could not verify your administrator role while offline. Connect to the internet and try again.',
+        );
       }
 
       // 3. If no role found, allow sign-in as default 'admin' for the
@@ -85,6 +94,38 @@ class FirebaseAdminAuthService implements AdminAuthService {
     }
   }
 
+  Future<DocumentSnapshot<Map<String, dynamic>>> _getUserProfile(
+    String uid,
+  ) async {
+    final profile = _db.collection('users').doc(uid);
+    try {
+      return await profile.get();
+    } catch (error) {
+      if (!_isFirestoreUnavailable(error)) {
+        throw const AdminAuthException(
+          'Could not verify your administrator profile. Please try again.',
+        );
+      }
+
+      try {
+        return await profile.get(const GetOptions(source: Source.cache));
+      } catch (_) {
+        throw const AdminAuthException(
+          'Could not verify your administrator role while offline. Connect to the internet and try again.',
+        );
+      }
+    }
+  }
+
+  bool _isFirestoreUnavailable(Object error) {
+    if (error is FirebaseException) {
+      return error.code == 'unavailable' || error.code == 'deadline-exceeded';
+    }
+    final message = error.toString();
+    return message.contains('[cloud_firestore/unavailable]') ||
+        message.contains('[cloud_firestore/deadline-exceeded]');
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   String? _roleFromClaims(Map<String, dynamic>? claims) {
@@ -99,15 +140,14 @@ class FirebaseAdminAuthService implements AdminAuthService {
       raw.trim().toLowerCase().replaceAll(RegExp(r'[\s-]+'), '_');
 
   String _friendlyMessage(String code) => switch (code) {
-        'user-not-found' ||
-        'wrong-password' ||
-        'invalid-credential' =>
-          'Incorrect email or password. Please try again.',
-        'user-disabled' => 'This account has been disabled.',
-        'too-many-requests' =>
-          'Too many attempts. Please wait a moment and try again.',
-        'network-request-failed' =>
-          'Network error. Check your connection and try again.',
-        _ => 'Sign-in failed. Please try again.',
-      };
+    'user-not-found' ||
+    'wrong-password' ||
+    'invalid-credential' => 'Incorrect email or password. Please try again.',
+    'user-disabled' => 'This account has been disabled.',
+    'too-many-requests' =>
+      'Too many attempts. Please wait a moment and try again.',
+    'network-request-failed' =>
+      'Network error. Check your connection and try again.',
+    _ => 'Sign-in failed. Please try again.',
+  };
 }

@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/mock_user_repository.dart';
+import '../data/firestore_user_repository.dart';
 import '../domain/user_entities.dart';
 
 final userRepositoryProvider = Provider<UserRepository>(
-  (_) => MockUserRepository(),
+  (_) => FirestoreUserRepository(),
 );
 
 // ── Users list ────────────────────────────────────────────────────────────────

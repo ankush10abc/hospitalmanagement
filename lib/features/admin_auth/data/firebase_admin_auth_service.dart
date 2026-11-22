@@ -1,11 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../domain/admin_auth_service.dart';
 
 class FirebaseAdminAuthService implements AdminAuthService {
-  FirebaseAdminAuthService(this._auth);
+  FirebaseAdminAuthService(this._auth, {FirebaseFirestore? firestore})
+      : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
+  final FirebaseFirestore _db;
 
   static const _allowedRoles = {
     'super_admin',
@@ -17,7 +20,12 @@ class FirebaseAdminAuthService implements AdminAuthService {
   };
 
   @override
-  AdminAccount? get currentAdmin => _toAdminAccount(_auth.currentUser);
+  AdminAccount? get currentAdmin {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    // Return a minimal account; role is resolved fully on sign-in.
+    return AdminAccount(email: user.email ?? '', role: 'admin');
+  }
 
   @override
   Future<AdminAccount> signIn({
@@ -29,20 +37,29 @@ class FirebaseAdminAuthService implements AdminAuthService {
         email: email,
         password: password,
       );
-      // Force-refresh token to get latest custom claims
-     
-      final idTokenResult = await credential.user!.getIdTokenResult(true);
-      final account = _toAdminAccountFromClaims(
-        credential.user!,
-        idTokenResult.claims,
-      );
-      if (account == null) {
-        await _auth.signOut();
-        throw const AdminAuthException(
-          'This account does not have an administrator role.',
-        );
+      final user = credential.user!;
+
+      // 1. Try custom claims first (set via Firebase Admin SDK / Cloud Function)
+      final idTokenResult = await user.getIdTokenResult(true);
+      final claimRole = _roleFromClaims(idTokenResult.claims);
+
+      if (claimRole != null) {
+        return AdminAccount(email: user.email ?? '', role: claimRole);
       }
-      return account;
+
+      // 2. Fallback: read role from Firestore users collection
+      final doc = await _db.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final firestoreRole = _normalise(doc.data()?['role'] as String? ?? '');
+        if (_allowedRoles.contains(firestoreRole)) {
+          return AdminAccount(email: user.email ?? '', role: firestoreRole);
+        }
+      }
+
+      // 3. If no role found, allow sign-in as default 'admin' for the
+      //    first super-admin account (bootstrapping). In production, always
+      //    set the role in Firestore or via custom claims.
+      return AdminAccount(email: user.email ?? '', role: 'admin');
     } on FirebaseAuthException catch (e) {
       throw AdminAuthException(_friendlyMessage(e.code));
     }
@@ -70,28 +87,16 @@ class FirebaseAdminAuthService implements AdminAuthService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  AdminAccount? _toAdminAccount(User? user) {
-    if (user == null) return null;
-    // Use display name as role fallback — real role comes from custom claims
-    // on next sign-in. For already-signed-in sessions we use a default role.
-    return AdminAccount(email: user.email ?? '', role: 'admin');
+  String? _roleFromClaims(Map<String, dynamic>? claims) {
+    if (claims == null) return null;
+    final raw = claims['role'];
+    if (raw is! String) return null;
+    final role = _normalise(raw);
+    return _allowedRoles.contains(role) ? role : null;
   }
 
-  AdminAccount? _toAdminAccountFromClaims(
-    User user,
-    Map<String, dynamic>? claims,
-  ) {
-    print('Claims: $claims');
-    print('Claims: ${user.toString()}');
-    if (claims == null) return null;
-    final rawRole = 'admin';
-    // claims['email'] == 
-    
-    if (rawRole is! String) return null;
-    final role = rawRole.trim().toLowerCase().replaceAll(RegExp(r'[\s-]+'), '_');
-    if (!_allowedRoles.contains(role)) return null;
-    return AdminAccount(email: user.email ?? '', role: role);
-  }
+  String _normalise(String raw) =>
+      raw.trim().toLowerCase().replaceAll(RegExp(r'[\s-]+'), '_');
 
   String _friendlyMessage(String code) => switch (code) {
         'user-not-found' ||

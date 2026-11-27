@@ -298,8 +298,8 @@ class M {
         _n(s.pre[0][1]) +
         _n(s.pre[1][1]) +
         _n(s.pre[2][1]) +
-        _n(s.pre[3][1]) * s.gest;
-    pre += _S(s.pre.skip(PD.pre.length).toList(), (row) => _n(row[1]));
+        _n(s.pre[3][1]) * s.gest +
+        _S(s.pre.skip(PD.pre.length).toList(), (row) => _n(row[1]));
 
     // Working capital
     stock = List.generate(

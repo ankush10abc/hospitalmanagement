@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdminRole(role) {
+      return role in ['super_admin', 'admin', 'finance_reviewer', 'data_manager',
+                      'support_operator', 'read_only_auditor'];
+    }
+
+    function canManageRole(role) {
+      return role in ['super_admin', 'admin', 'finance_reviewer', 'data_manager',
+                      'support_operator'];
+    }
+
+    function hasAdminProfile() {
+      return signedIn() && (
+        isAdminRole(request.auth.token.get('role', ''))
+        || (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && isAdminRole(get(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          ).data.role))
+      );
+    }
+
+    function canManage() {
+      return signedIn() && (
+        canManageRole(request.auth.token.get('role', ''))
+        || (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && canManageRole(get(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          ).data.role))
+      );
+    }
+
+    match /users/{userId} {
+      // A signed-in user can load their own profile to verify their role.
+      // Only an existing administrator can browse or change user profiles.
+      allow get: if signedIn() && (request.auth.uid == userId || hasAdminProfile());
+      allow list: if hasAdminProfile();
+      allow create, update, delete: if canManage();
+    }
+
+    match /organizations/{organizationId} {
+      allow read: if hasAdminProfile();
+      allow create, update, delete: if canManage();
+    }
+
+    match /projects/{projectId} {
+      allow read: if hasAdminProfile();
+      allow create, update, delete: if canManage();
+    }
+
+    match /hospitalPlanConfigs/{configId} {
+      allow read: if hasAdminProfile();
+      allow create, update, delete: if canManage();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

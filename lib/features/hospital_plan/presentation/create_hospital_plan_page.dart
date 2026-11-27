@@ -13,8 +13,18 @@ import 'tabs/tab_setup.dart';
 import 'tabs/tab_staff_equip.dart';
 
 /// Dynamic Flutter version of the planning workflow in Platform.html.
-class CreateHospitalPlanPage extends ConsumerWidget {
+class CreateHospitalPlanPage extends ConsumerStatefulWidget {
   const CreateHospitalPlanPage({super.key});
+
+  @override
+  ConsumerState<CreateHospitalPlanPage> createState() =>
+      _CreateHospitalPlanPageState();
+}
+
+class _CreateHospitalPlanPageState
+    extends ConsumerState<CreateHospitalPlanPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
 
   static const _tabs = [
     'Setup',
@@ -29,172 +39,280 @@ class CreateHospitalPlanPage extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+    Future.microtask(() => ref.read(planProvider.notifier).load());
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(planProvider);
     final model = ref.watch(planResultProvider);
+    final syncStatus = ref.watch(planSyncStatusProvider);
+
     final dashboardMetrics = <(String, String)>[
       ('Total project cost', fCr(model.total)),
       ('Cost per bed', fCr(_safeDivide(model.total, state.beds))),
-      (
-        'Cost per sq ft',
-        '₹${fL(_safeDivide(model.total * 1e5, model.area), d: 0)}',
-      ),
+      ('Cost per sq ft', '₹${fL(_safeDivide(model.total * 1e5, model.area), d: 0)}'),
       ('Built-up area', '${fL(model.area, d: 0)} sq ft'),
-      (
-        'Land required',
-        '${fL(model.ldPlot, d: 0)} sq ft (${fL(model.ldPlot / 43560, d: 2)} ac)',
-      ),
+      ('Land required', '${fL(model.ldPlot, d: 0)} sq ft (${fL(model.ldPlot / 43560, d: 2)} ac)'),
       ('Floors required', '${model.ldFn} of ${model.ldFl} allowed'),
       ('Equipment share', fPct(_safeDivide(model.med, model.total))),
       ('Year 5 revenue', fCr(model.R[4]['T']!)),
-      (
-        'Year 5 EBITDA margin',
-        fPct(_safeDivide(model.eb[4], model.R[4]['T']!)),
-      ),
+      ('Year 5 EBITDA margin', fPct(_safeDivide(model.eb[4], model.R[4]['T']!))),
       ('Project IRR (10y)', fPct(model.pIrr)),
       ('Equity IRR (10y)', fPct(model.eIrr)),
-      (
-        'Average DSCR',
-        model.avgDs.isFinite ? model.avgDs.toStringAsFixed(2) : 'n/a',
-      ),
+      ('Average DSCR', model.avgDs.isFinite ? model.avgDs.toStringAsFixed(2) : 'n/a'),
       ('Payback', model.pb == null ? '>10 years' : 'Year ${model.pb}'),
       ('Year 5 BEP', fPct(model.bep[4])),
     ];
+
     final dashboardTips = <Widget>[
-      for (final equipment in model.eqAll.where(
-        (row) => row[0] == 'Imaging / oncology',
-      ))
+      for (final eq in model.eqAll.where((r) => r[0] == 'Imaging / oncology'))
         TipBanner(
-          'Removing ${equipment[1]} could reduce project cost by about ${fCr(_num(equipment[4]))} (${fL(_safeDivide(_num(equipment[4]), model.total) * 100, d: 1)}%). Review the service mix before changing it.',
+          'Removing ${eq[1]} could reduce project cost by about ${fCr(_num(eq[4]))} (${fL(_safeDivide(_num(eq[4]), model.total) * 100, d: 1)}%). Review the service mix before changing it.',
         ),
       if (model.pIrr.isFinite && model.pIrr < 0.12)
-        const TipBanner(
-          'Project IRR is below 12%. Review occupancy ramp-up, bed mix, tariffs, or capital costs.',
-          warn: true,
-        ),
+        const TipBanner('Project IRR is below 12%. Review occupancy ramp-up, bed mix, tariffs, or capital costs.', warn: true),
       if (model.avgDs.isFinite && model.avgDs < 1.5)
-        const TipBanner(
-          'Average DSCR is below 1.5. Consider the financing assumptions and debt capacity.',
-          warn: true,
-        ),
+        const TipBanner('Average DSCR is below 1.5. Consider the financing assumptions and debt capacity.', warn: true),
     ];
-    return DefaultTabController(
-      length: _tabs.length,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 22, 24, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final heading = const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Create Hospital Plan',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF172B3A),
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Build a live project feasibility and bank style CMA model.',
-                          style: TextStyle(color: Color(0xFF667786)),
-                        ),
-                      ],
-                    );
-                    final projectChip = Chip(
-                      label: Text(
-                        '${state.beds.toStringAsFixed(0)} beds · ${state.cityName}',
-                      ),
-                    );
-                    if (constraints.maxWidth < 620) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          heading,
-                          const SizedBox(height: 8),
-                          projectChip,
-                        ],
-                      );
-                    }
-                    return Row(
-                      children: [
-                        Expanded(child: heading),
-                        projectChip,
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 72,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final metric in dashboardMetrics)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: KpiCard(label: metric.$1, value: metric.$2),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (dashboardTips.isNotEmpty) ...[
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    title: Text('Planning insights (${dashboardTips.length})'),
-                    children: dashboardTips,
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7F8),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: _PageHeader(state: state, syncStatus: syncStatus, ref: ref),
+          ),
+          SliverToBoxAdapter(
+            child: _DashboardSection(
+              metrics: dashboardMetrics,
+              tips: dashboardTips,
+            ),
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _TabHeaderDelegate(
+              TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                labelColor: const Color(0xFF0B7A75),
+                unselectedLabelColor: const Color(0xFF5D7078),
+                indicatorColor: const Color(0xFF0B7A75),
+                indicatorWeight: 2.5,
+                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                unselectedLabelStyle: const TextStyle(fontSize: 13),
+                tabs: _tabs.map((t) => Tab(text: t)).toList(),
+              ),
+            ),
+          ),
+        ],
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            const TabSetup(),
+            const TabRevenue(),
+            const TabStaffEquip(),
+            const TabProjectCost(),
+            const TabPL(),
+            _LoanWorkingCapitalTab(model: model, state: state),
+            _DepreciationBalanceSheetTab(model: model),
+            _RatiosTab(model: model, state: state),
+            _DprTab(state: state, model: model),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Page header (teal banner) ─────────────────────────────────────────────────
+class _PageHeader extends StatelessWidget {
+  const _PageHeader({required this.state, required this.syncStatus, required this.ref});
+  final PlanState state;
+  final PlanSyncStatus syncStatus;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0B7A75),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final title = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Text('🏥', style: TextStyle(fontSize: 20)),
+                  SizedBox(width: 8),
+                  Text(
+                    'HospiPlan',
+                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: Colors.white),
                   ),
                 ],
-              ],
-            ),
+              ),
+              const SizedBox(height: 3),
+              const Text(
+                'Hospital DPR + bank-style CMA model (P&L, loan, working capital, balance sheet, cash flow, DSCR, IRR, BEP)',
+                style: TextStyle(fontSize: 12, color: Color(0xFFE3F3F1)),
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Chip(
+                backgroundColor: const Color(0xFF0D9488),
+                side: BorderSide.none,
+                avatar: const Icon(Icons.bed_outlined, size: 15, color: Colors.white),
+                label: Text(
+                  '${state.beds.toStringAsFixed(0)} beds · ${state.cityName}',
+                  style: const TextStyle(fontSize: 12, color: Colors.white),
+                ),
+              ),
+              _SaveButton(syncStatus: syncStatus, ref: ref),
+            ],
+          );
+          return constraints.maxWidth < 700
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [title, const SizedBox(height: 12), actions],
+                )
+              : Row(
+                  children: [Expanded(child: title), actions],
+                );
+        },
+      ),
+    );
+  }
+}
+
+class _SaveButton extends StatelessWidget {
+  const _SaveButton({required this.syncStatus, required this.ref});
+  final PlanSyncStatus syncStatus;
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSaving = syncStatus == PlanSyncStatus.saving;
+    return FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: Colors.white.withValues(alpha: 0.18),
+        foregroundColor: Colors.white,
+      ),
+      onPressed: isSaving
+          ? null
+          : () async {
+              try {
+                await ref.read(planProvider.notifier).saveNow();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Plan saved to Firestore')),
+                  );
+                }
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not save. Check connection.')),
+                  );
+                }
+              }
+            },
+      icon: Icon(switch (syncStatus) {
+        PlanSyncStatus.saved => Icons.cloud_done,
+        PlanSyncStatus.error => Icons.cloud_off,
+        _ => Icons.cloud_upload,
+      }, size: 16),
+      label: Text(switch (syncStatus) {
+        PlanSyncStatus.loading => 'Loading...',
+        PlanSyncStatus.saving => 'Saving...',
+        PlanSyncStatus.error => 'Save failed',
+        PlanSyncStatus.saved => 'Saved',
+      }, style: const TextStyle(fontSize: 12)),
+    );
+  }
+}
+
+// ── Dashboard KPI section ─────────────────────────────────────────────────────
+class _DashboardSection extends StatelessWidget {
+  const _DashboardSection({required this.metrics, required this.tips});
+  final List<(String, String)> metrics;
+  final List<Widget> tips;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Dashboard (₹ lakh unless stated)',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF17262B)),
           ),
-          Material(
-            color: Colors.white,
-            child: TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              labelColor: const Color(0xFF0B7A75),
-              tabs: _tabs
-                  .asMap()
-                  .entries
-                  .map(
-                    (entry) => Tab(
-                      key: ValueKey('hospital-plan-tab-${entry.key}'),
-                      text: entry.value,
-                    ),
-                  )
-                  .toList(),
-            ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: metrics
+                .map((m) => KpiCard(label: m.$1, value: m.$2))
+                .toList(),
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: TabBarView(
-              children: [
-                const TabSetup(),
-                const TabRevenue(),
-                const TabStaffEquip(),
-                const TabProjectCost(),
-                const TabPL(),
-                _LoanWorkingCapitalTab(model: model, state: state),
-                _DepreciationBalanceSheetTab(model: model),
-                _RatiosTab(model: model, state: state),
-                _DprTab(state: state, model: model),
-              ],
+          if (tips.isNotEmpty) ...[  
+            const SizedBox(height: 8),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              dense: true,
+              title: Text(
+                'Planning insights (${tips.length})',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF0B7A75), fontWeight: FontWeight.w600),
+              ),
+              children: tips,
             ),
+          ],
+          const SizedBox(height: 6),
+          const Text(
+            'Planning-grade estimates. Validate local rates, tariffs, staffing and land norms before bank submission.',
+            style: TextStyle(fontSize: 11, color: Color(0xFF5D7078)),
           ),
         ],
       ),
     );
   }
+}
+
+// ── Sticky tab bar delegate ───────────────────────────────────────────────────
+class _TabHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _TabHeaderDelegate(this.tabBar);
+  final TabBar tabBar;
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      Material(
+        color: Colors.white,
+        elevation: overlapsContent ? 2 : 0,
+        child: tabBar,
+      );
+  @override
+  bool shouldRebuild(covariant _TabHeaderDelegate old) => old.tabBar != tabBar;
 }
 
 class _LoanWorkingCapitalTab extends StatelessWidget {
@@ -763,10 +881,10 @@ class _PlanScroll extends StatelessWidget {
   final List<Widget> children;
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.all(20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [...children, const SizedBox(height: 24)],
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+    child: PlanCard(
+      children: [...children, const SizedBox(height: 8)],
     ),
   );
 }

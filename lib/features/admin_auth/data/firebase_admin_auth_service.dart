@@ -61,7 +61,7 @@ class FirebaseAdminAuthService implements AdminAuthService {
       // cached profile without a valid role cannot prove current access.
       if (doc.metadata.isFromCache) {
         throw const AdminAuthException(
-          'Could not verify your administrator role while offline. Connect to the internet and try again.',
+          'Your email and password were accepted, but Firebase could not verify your admin role. Check your internet connection and make sure your account has a role in Firestore at users/<your Firebase Auth UID> (or has a Firebase custom claim named role).',
         );
       }
 
@@ -99,11 +99,13 @@ class FirebaseAdminAuthService implements AdminAuthService {
   ) async {
     final profile = _db.collection('users').doc(uid);
     try {
-      return await profile.get();
+      // Role authorization must be based on the current server state. An
+      // offline cached miss is not evidence that this is the bootstrap admin.
+      return await profile.get(const GetOptions(source: Source.server));
     } catch (error) {
       if (!_isFirestoreUnavailable(error)) {
         throw const AdminAuthException(
-          'Could not verify your administrator profile. Please try again.',
+          'Your email and password were accepted, but Firebase could not read your administrator profile. Check that Firestore is enabled and its security rules allow this signed-in account to read users/<your Firebase Auth UID>.',
         );
       }
 

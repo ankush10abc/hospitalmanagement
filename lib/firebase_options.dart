@@ -31,10 +31,11 @@ class DefaultFirebaseOptions {
   // Add a Web app if you haven't, then copy the config values below.
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyAFN-AVBylQTGSSM5Cx_iS-jLc7BC3AEPw',
-    appId: '1:970966249206:web:REPLACE_WITH_WEB_APP_ID',
+    appId: '1:970966249206:web:84e81781dead57ef55c6d7',
     messagingSenderId: '970966249206',
     projectId: 'my-testankush',
     storageBucket: 'my-testankush.firebasestorage.app',
     authDomain: 'my-testankush.firebaseapp.com',
   );
 }
+

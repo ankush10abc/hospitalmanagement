@@ -213,6 +213,11 @@ class M {
         _n(s.ad[6][1]),
       ]);
 
+    // Admin-added advanced equipment is included as a custom selected item.
+    for (final item in s.ad.skip(PD.ad.length)) {
+      adv.add(['Imaging / oncology', item[0], 1.0, _n(item[1]), _n(item[1])]);
+    }
+
     final otE = OT
         .where((o) => _n(o[1]) > 0)
         .map(
@@ -294,6 +299,7 @@ class M {
         _n(s.pre[1][1]) +
         _n(s.pre[2][1]) +
         _n(s.pre[3][1]) * s.gest;
+    pre += _S(s.pre.skip(PD.pre.length).toList(), (row) => _n(row[1]));
 
     // Working capital
     stock = List.generate(

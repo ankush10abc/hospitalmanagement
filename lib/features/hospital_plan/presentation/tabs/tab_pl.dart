@@ -20,9 +20,11 @@ class TabPL extends ConsumerWidget {
         [label, ...vals.map(fPct)];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SecHead('Projected profit & loss (₹ lakh)'),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+      child: PlanCard(
+        children: [
+          const SecHead('Projected profit & loss (₹ lakh)'),
         FinTable(
           headers: const ['Particulars', ..._yh],
           rows: [
@@ -64,10 +66,10 @@ class TabPL extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 8),
-        const Text('Revenue is theoretical 100% revenue × utilisation × inflation (compounded). Tax has no loss carry-forward.',
-            style: TextStyle(fontSize: 12, color: Color(0xFF5D7078))),
-        const SizedBox(height: 24),
-      ]),
+          const Text('Revenue is theoretical 100% revenue × utilisation × inflation (compounded). Tax has no loss carry-forward.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF5D7078))),
+        ],
+      ),
     );
   }
 }

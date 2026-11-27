@@ -1,11 +1,74 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/plan_state.dart';
 import '../domain/plan_engine.dart';
 import '../domain/plan_data.dart';
 
+enum PlanSyncStatus { loading, saved, saving, error }
+
+final planSyncStatusProvider = StateProvider<PlanSyncStatus>(
+  (ref) => PlanSyncStatus.loading,
+);
+
 class PlanNotifier extends StateNotifier<PlanState> {
-  PlanNotifier() : super(PlanState());
+  PlanNotifier(this._ref) : super(PlanState()) {
+    addListener((_) => _queueSave());
+  }
+
+  final Ref _ref;
+  Timer? _saveTimer;
+  bool _loaded = false;
+  static final _doc = FirebaseFirestore.instance
+      .collection('hospitalPlanConfigs')
+      .doc('default');
+
+  Future<void> load() async {
+    try {
+      final snapshot = await _doc.get();
+      if (snapshot.exists && snapshot.data() != null) {
+        state = PlanState.fromMap(snapshot.data()!);
+      }
+      _loaded = true;
+      _ref.read(planSyncStatusProvider.notifier).state = PlanSyncStatus.saved;
+    } catch (_) {
+      _loaded = true;
+      _ref.read(planSyncStatusProvider.notifier).state = PlanSyncStatus.error;
+    }
+  }
+
+  Future<void> saveNow() async {
+    _saveTimer?.cancel();
+    if (!_loaded) _loaded = true;
+    _ref.read(planSyncStatusProvider.notifier).state = PlanSyncStatus.saving;
+    try {
+      await _doc.set({
+        ...state.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      _ref.read(planSyncStatusProvider.notifier).state = PlanSyncStatus.saved;
+    } catch (_) {
+      _ref.read(planSyncStatusProvider.notifier).state = PlanSyncStatus.error;
+      rethrow;
+    }
+  }
+
+  void _queueSave() {
+    if (!_loaded) return;
+    _saveTimer?.cancel();
+    _ref.read(planSyncStatusProvider.notifier).state = PlanSyncStatus.saving;
+    _saveTimer = Timer(const Duration(milliseconds: 700), () {
+      saveNow().catchError((_) {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _saveTimer?.cancel();
+    super.dispose();
+  }
 
   void setParam(String key, double v) {
     final next = _apply(state, key, v);
@@ -59,6 +122,113 @@ class PlanNotifier extends StateNotifier<PlanState> {
   void setUtil(int y, double v) {
     final u = List<double>.from(state.util)..[y] = v;
     state = state.copyWith(util: u);
+  }
+
+  List<List<dynamic>> _table(String key) => switch (key) {
+    'opd' => state.opd,
+    'room' => state.room,
+    'diag' => state.diag,
+    'otc' => state.otc,
+    'staff' => state.staff,
+    'eq' => state.eq,
+    'ad' => state.ad,
+    'nm' => state.nm,
+    'fr' => state.fr,
+    'lump' => state.lump,
+    'pre' => state.pre,
+    'ott' => state.ott,
+    _ => const [],
+  };
+
+  void addRow(String table) {
+    final rows = _table(table).map((r) => List<dynamic>.from(r)).toList();
+    final templates = {
+      'opd': ['New specialty', 0.0, 0.0],
+      'room': ['New room category', 0.0, 0.0],
+      'diag': ['New diagnostic test', 0.0, 0.0, 0.0, 0.0],
+      'otc': ['New case type', 0.0, 0.0],
+      'staff': ['New role', 0.0, 0.0, 0.0],
+      'eq': ['Other', 'New equipment', 0.0, 'f', 1.0],
+      'ad': ['New advanced equipment', 0.0],
+      'nm': ['New non-medical item', 0.0, 0.0],
+      'fr': ['New furniture item', 0.0],
+      'lump': ['New section', 0.0],
+      'pre': ['New expense', 0.0],
+      'ott': ['New OT type', 0.0, 0.0, 0.0, 0.0],
+    };
+    if (!templates.containsKey(table)) return;
+    rows.add(templates[table]!);
+    _replaceTable(table, rows);
+  }
+
+  void removeRow(String table, int row) {
+    final rows = _table(table).map((r) => List<dynamic>.from(r)).toList();
+    final defaults = {
+      'opd': PD.opd.length,
+      'room': PD.room.length,
+      'diag': PD.diag.length,
+      'otc': PD.otc.length,
+      'staff': PD.staff.length,
+      'eq': PD.eq.length,
+      'ad': PD.ad.length,
+      'nm': PD.nm.length,
+      'fr': PD.fr.length,
+      'lump': PD.lump.length,
+      'pre': PD.pre.length,
+      'ott': PD.ott.length,
+    };
+    if (row < (defaults[table] ?? 0) || row >= rows.length) return;
+    rows.removeAt(row);
+    _replaceTable(table, rows);
+  }
+
+  void setTextCell(String table, int row, int col, String value) {
+    final rows = _table(table).map((r) => List<dynamic>.from(r)).toList();
+    if (row < rows.length && col < rows[row].length) {
+      rows[row][col] = value;
+      _replaceTable(table, rows);
+    }
+  }
+
+  void _replaceTable(String table, List<List<dynamic>> rows) {
+    switch (table) {
+      case 'opd':
+        state = state.copyWith(opd: rows);
+        return;
+      case 'room':
+        state = state.copyWith(room: rows);
+        return;
+      case 'diag':
+        state = state.copyWith(diag: rows);
+        return;
+      case 'otc':
+        state = state.copyWith(otc: rows);
+        return;
+      case 'staff':
+        state = state.copyWith(staff: rows);
+        return;
+      case 'eq':
+        state = state.copyWith(eq: rows);
+        return;
+      case 'ad':
+        state = state.copyWith(ad: rows);
+        return;
+      case 'nm':
+        state = state.copyWith(nm: rows);
+        return;
+      case 'fr':
+        state = state.copyWith(fr: rows);
+        return;
+      case 'lump':
+        state = state.copyWith(lump: rows);
+        return;
+      case 'pre':
+        state = state.copyWith(pre: rows);
+        return;
+      case 'ott':
+        state = state.copyWith(ott: rows);
+        return;
+    }
   }
 
   void setCell(String table, int row, int col, double v) {
@@ -201,7 +371,7 @@ class PlanNotifier extends StateNotifier<PlanState> {
 }
 
 final planProvider = StateNotifierProvider<PlanNotifier, PlanState>(
-  (_) => PlanNotifier(),
+  (ref) => PlanNotifier(ref),
 );
 
 final planResultProvider = Provider<M>((ref) => M(ref.watch(planProvider)));

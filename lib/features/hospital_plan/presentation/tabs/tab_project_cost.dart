@@ -14,8 +14,10 @@ class TabProjectCost extends ConsumerWidget {
     final s = ref.watch(planProvider);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+      child: PlanCard(
+        children: [
         const SecHead('Cost of project'),
         FinTable(
           headers: const ['Head', '₹ lakh', '₹ Cr', '%'],
@@ -120,8 +122,9 @@ class TabProjectCost extends ConsumerWidget {
           ]).toList(),
           totals: ['Total (full strength)', fL(m.staffN, d: 0), '', fL(m.staffAnn)],
         ),
-        const SizedBox(height: 24),
-      ]),
+        const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 

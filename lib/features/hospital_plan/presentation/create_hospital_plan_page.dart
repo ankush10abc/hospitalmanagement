@@ -278,6 +278,9 @@ class _DashboardSection extends StatelessWidget {
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               dense: true,
+              expandedAlignment: Alignment.centerLeft,
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              childrenPadding: EdgeInsets.zero,
               title: Text(
                 'Planning insights (${tips.length})',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF0B7A75), fontWeight: FontWeight.w600),
